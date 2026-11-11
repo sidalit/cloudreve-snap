@@ -1,0 +1,29 @@
+#!/bin/sh
+# Validate `snap set cloudreve listen=...` and restart the service so it applies.
+set -eu
+
+listen="$(snapctl get listen)"
+if [ -z "$listen" ]; then
+  listen=127.0.0.1:5212
+  snapctl set listen="$listen"
+fi
+case "$listen" in
+  *[![:print:]]*)
+    echo 'listen must not contain control characters' >&2
+    exit 1
+    ;;
+esac
+if ! printf '%s\n' "$listen" | grep -Eq '^([A-Za-z0-9][A-Za-z0-9.-]*|\[[0-9A-Fa-f:.]+\])?:[0-9]{1,5}$'; then
+  echo 'listen must be host:port, [IPv6]:port or :port' >&2
+  exit 1
+fi
+port="${listen##*:}"
+if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+  echo 'listen port must be between 1 and 65535' >&2
+  exit 1
+fi
+
+# Also restart an enabled service that is down, so fixing a bad value brings it back.
+if snapctl services "$SNAP_INSTANCE_NAME.daemon" | grep -qwE 'enabled|active'; then
+  snapctl restart "$SNAP_INSTANCE_NAME.daemon"
+fi

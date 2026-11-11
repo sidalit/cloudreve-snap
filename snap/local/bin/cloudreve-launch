@@ -1,0 +1,9 @@
+#!/bin/sh
+# Start the server on the address from `snap set cloudreve listen=...`.
+set -eu
+
+listen="$(snapctl get listen)"
+# Upstream ignores an empty value and listens on every interface.
+export CR_CONF_System__Listen="${listen:-127.0.0.1:5212}"
+
+exec "$SNAP/bin/cloudreve-run" server

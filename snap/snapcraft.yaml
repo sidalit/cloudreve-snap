@@ -1,0 +1,126 @@
+name: cloudreve
+base: core26
+version: '4.19.1'
+title: Cloudreve
+icon: snap/gui/cloudreve.png
+summary: Self-hosted file management and sharing system
+description: |
+  Cloudreve is a self-hosted cloud drive. Upload, organize, preview and
+  share files from a browser or over WebDAV, with several users and groups.
+  Files can be kept on this machine, on another Cloudreve node, on OneDrive
+  or on S3-compatible and other object storage.
+
+  **Getting started**
+
+  The service starts right after installation and listens on
+  127.0.0.1:5212 (this machine only). Open http://localhost:5212 and
+  register an account: the first registered account becomes the
+  administrator.
+
+  To open it to your network:
+
+     sudo snap set cloudreve listen=:5212
+
+  **Data and settings**
+
+  The configuration file, the SQLite database and uploaded files are kept
+  in /var/snap/cloudreve/common/data. Database, Redis, TLS and slave node
+  settings go in conf.ini in that folder; restart the service after
+  editing it. To store files on disks mounted under /media or /mnt:
+
+     sudo snap connect cloudreve:removable-media
+
+  This is the community edition, without the optional helper programs:
+  thumbnails are made for JPEG, PNG and GIF images and music covers only,
+  and remote download needs a separately installed aria2 or qBittorrent.
+license: GPL-3.0-only
+grade: stable
+confinement: strict
+website: https://cloudreve.org
+source-code:
+  - https://github.com/cloudreve/cloudreve
+  - https://github.com/sidalit/cloudreve-snap
+issues:
+  - https://github.com/cloudreve/cloudreve/issues
+  - https://github.com/sidalit/cloudreve-snap/issues
+contact: https://github.com/sidalit/cloudreve-snap/issues
+
+platforms:
+  amd64:
+  arm64:
+
+apps:
+  cloudreve:
+    command: bin/cloudreve-cli
+    plugs:
+      - network
+  daemon:
+    command: bin/cloudreve-launch
+    daemon: simple
+    restart-condition: on-failure
+    plugs:
+      - network
+      - network-bind
+      # Storage policies and imports that point at /media or /mnt.
+      - removable-media
+
+parts:
+  cloudreve:
+    plugin: nil
+    source: https://github.com/cloudreve/cloudreve.git
+    source-tag: $SNAPCRAFT_PROJECT_VERSION
+    source-depth: 1
+    build-snaps:
+      # Upstream releases are built with Go 1.26 and Node.js 22; the Node snap includes Yarn.
+      - go/1.26/stable
+      - node/22/stable
+    build-packages:
+      - git
+      - zip
+    build-environment:
+      - CGO_ENABLED: '0'
+      - GOTOOLCHAIN: local
+      - HUSKY: '0'
+    override-build: |
+      # Upstream's release build injects the tag and the commit into the binary.
+      commit="$(git rev-parse --short HEAD)"
+      version="$(craftctl get version)"
+      case "$version" in
+        git-*)
+          # A build of upstream HEAD. Cloudreve only starts with a semantic version
+          # and migrates the database once per version, so use the next patch
+          # release as a pre-release that is unique to this commit.
+          latest="$(git ls-remote --tags --refs origin |
+            sed -n 's|.*refs/tags/\([0-9]*\.[0-9]*\.[0-9]*\)$|\1|p' | sort -V | tail -n 1)"
+          test -n "$latest"
+          version="${latest%.*}.$((${latest##*.} + 1))-next.g$commit"
+          ;;
+      esac
+
+      # Build the web interface (the assets submodule) with upstream's script, which
+      # leaves it in application/statics/assets.zip to be embedded into the binary.
+      bash .build/build-assets.sh "$version"
+
+      module=github.com/cloudreve/Cloudreve/v4/application/constants
+      go build -trimpath \
+        -ldflags "-s -w -X $module.BackendVersion=$version -X $module.LastCommit=$commit" \
+        -o "$CRAFT_PART_INSTALL/bin/cloudreve" .
+
+      install -Dm644 LICENSE "$CRAFT_PART_INSTALL/share/doc/cloudreve/LICENSE"
+      # The binary and its web interface contain third-party code: keep its
+      # license and notice files.
+      notices="$CRAFT_PART_INSTALL/share/doc/cloudreve/dependencies"
+      mkdir -p "$notices"
+      (cd assets && find node_modules -type f \( -iname 'license*' -o -iname 'licence*' \
+        -o -iname 'copying*' -o -iname 'notice*' \) -exec cp --parents -t "$notices" {} +)
+      go list -deps -f '{{with .Module}}{{if not .Main}}{{.Path}} {{.Dir}}{{end}}{{end}}' . |
+        sort -u | while read -r name dir; do
+          [ -d "$dir" ] || continue
+          find "$dir" -maxdepth 1 -type f \( -iname 'license*' -o -iname 'licence*' \
+            -o -iname 'copying*' -o -iname 'notice*' \) \
+            -exec install -Dm644 -t "$notices/go/$name" {} +
+        done
+
+  scripts:
+    plugin: dump
+    source: snap/local
