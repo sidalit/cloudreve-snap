@@ -28,35 +28,21 @@ Unofficial snap packaging for [Cloudreve](https://github.com/cloudreve/cloudreve
 sudo snap install cloudreve
 ```
 
-Open [http://127.0.0.1:5212](http://127.0.0.1:5212) and register an account. The service starts automatically; the first registered account becomes the administrator. Create it before exposing Cloudreve to your network. Registration stays open for further accounts, as upstream ships it; turn it off in the dashboard settings if you do not want that.
+The service starts automatically. Open [http://127.0.0.1:5212](http://127.0.0.1:5212) and register: the first account becomes the administrator, so create it before exposing Cloudreve to your network. Registration stays open afterwards, as upstream ships it; you can turn it off in the dashboard.
 
 ## Configure
 
 | Setting | Accepted values | Default |
 | --- | --- | --- |
-| `listen` | `host:port`, `[IPv6]:port` or `:port` for all interfaces; port `1`–`65535` | `127.0.0.1:5212` |
+| `listen` | `host:port`, `[IPv6]:port` or `:port` for all interfaces | `127.0.0.1:5212` |
 
 ```bash
-sudo snap get cloudreve
 sudo snap set cloudreve listen=:5212
 ```
 
-Changes restart an enabled or running service. `sudo snap unset cloudreve listen` restores the default. After changing the address, update the site URL under Settings, Basic in the dashboard. Use an HTTPS reverse proxy for internet access.
+Changes restart the service, and `sudo snap unset cloudreve listen` restores the default. After changing the address, update the site URL in the dashboard settings, and use an HTTPS reverse proxy for internet access.
 
-Other settings go in upstream's [configuration file](https://docs.cloudreve.org/overview/configure): an external MySQL or PostgreSQL database, Redis, TLS or slave node mode. Run `sudo snap restart cloudreve` after editing it. The snap sets `Listen` in `[System]` and `DBFile` in `[Database]` itself, so these two keys have no effect in the file. With `[SSL]` or `[UnixSocket]` configured, Cloudreve listens on the address of that section instead of `listen`.
-
-Data lives under `/var/snap/cloudreve/common/data`:
-
-| Path | Contents |
-| --- | --- |
-| `conf.ini` | Configuration file |
-| `cloudreve.db` | SQLite database |
-| `uploads` | Files of the default storage policy |
-| `avatar`, `temp` | Avatars and temporary files |
-
-Upstream's maintenance commands, such as `eject`, work on the same data; `sudo cloudreve --help` lists them. The server itself only runs as the service.
-
-Optional access to folders under `/media`, `/mnt` and `/run/media` for storage policies:
+To use folders under `/media`, `/mnt` or `/run/media` in storage policies:
 
 ```bash
 sudo snap connect cloudreve:removable-media
@@ -64,12 +50,11 @@ sudo snap connect cloudreve:removable-media
 
 ## Limitations
 
-- Cloudreve itself makes thumbnails for JPEG, PNG and GIF images and music covers only. VIPS, FFmpeg, FFprobe, LibreOffice and LibRaw are not included, so the generators and the media information extractor that need them cannot be used.
-- Remote download needs a separately installed aria2 or qBittorrent; neither is included. Run it as root on the same machine and set the node's temporary download directory to a folder inside `/var/snap/cloudreve/common`.
-- Local storage policies can only use folders inside `/var/snap/cloudreve/common` or, once `removable-media` is connected, under `/media`, `/mnt` and `/run/media`. These folders must be owned by root: the service runs as root but cannot override file permissions. Home folders are not reachable.
-- Databases and Redis are reached over TCP. Their Unix sockets in host locations such as `/run` are blocked; a socket placed inside `/var/snap/cloudreve/common` works.
-- In Cloudreve 4.19.1, `cloudreve master-key get` and `rotate` stop with "Invalid Semantic Version", an upstream defect; `master-key generate` works.
-- This is the community edition. Updates come through snapd. Back up the data folder before upgrading: `snap revert` does not undo database migrations.
+- Thumbnails are made for JPEG, PNG and GIF images and music covers only: VIPS, FFmpeg, LibreOffice and LibRaw are not included.
+- Remote download needs aria2 or qBittorrent installed separately, with its download folder inside `/var/snap/cloudreve/common`.
+- Local storage is limited to `/var/snap/cloudreve/common` and, with `removable-media`, folders owned by root under `/media`, `/mnt` and `/run/media`. Home folders are not reachable.
+- Databases and Redis are reached over TCP, or through a socket inside `/var/snap/cloudreve/common`.
+- `snap revert` does not undo database migrations. Back up the data folder before upgrading.
 
 ## Build
 
