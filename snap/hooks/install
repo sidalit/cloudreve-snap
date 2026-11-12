@@ -1,6 +1,5 @@
 #!/bin/sh
-# The service starts before the configure hook runs: set the address first, so
-# that it never starts on upstream's default, every interface.
+# The service starts before the configure hook runs.
 set -eu
 
 snapctl set listen=127.0.0.1:5212

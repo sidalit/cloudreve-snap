@@ -1,5 +1,4 @@
 #!/bin/sh
-# Maintenance commands (eject, migrate, master-key) on the service's data.
 set -eu
 
 if [ "$(id -u)" -ne 0 ]; then

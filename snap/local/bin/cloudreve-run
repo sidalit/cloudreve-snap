@@ -1,15 +1,12 @@
 #!/bin/sh
-# Run Cloudreve on the snap's data folder: conf.ini, the database and uploads.
 set -eu
 
 umask 077
 mkdir -p "$SNAP_COMMON/data"
-# With --use-working-dir, upstream resolves its data folder, and the upload
-# paths stored in the database, from here instead of the read-only snap.
+# --use-working-dir resolves the data folder and stored upload paths from here.
 cd "$SNAP_COMMON"
 
-# The default database path is computed before that option is read and still
-# points next to the executable. Environment values override conf.ini.
+# The default database path ignores --use-working-dir.
 export CR_CONF_Database__DBFile="$SNAP_COMMON/data/cloudreve.db"
 
 exec "$SNAP/bin/cloudreve" --use-working-dir --conf "$SNAP_COMMON/data/conf.ini" "$@"

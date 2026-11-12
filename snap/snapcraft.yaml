@@ -61,7 +61,6 @@ apps:
     plugs:
       - network
       - network-bind
-      # Storage policies and imports that point at /media or /mnt.
       - removable-media
 
 parts:
@@ -71,7 +70,6 @@ parts:
     source-tag: $SNAPCRAFT_PROJECT_VERSION
     source-depth: 1
     build-snaps:
-      # Upstream releases are built with Go 1.26 and Node.js 22; the Node snap includes Yarn.
       - go/1.26/stable
       - node/22/stable
     build-packages:
@@ -82,14 +80,11 @@ parts:
       - GOTOOLCHAIN: local
       - HUSKY: '0'
     override-build: |
-      # Upstream's release build injects the tag and the commit into the binary.
       commit="$(git rev-parse --short HEAD)"
       version="$(craftctl get version)"
       case "$version" in
         git-*)
-          # A build of upstream HEAD. Cloudreve only starts with a semantic version
-          # and migrates the database once per version, so use the next patch
-          # release as a pre-release that is unique to this commit.
+          # Cloudreve needs a semantic version and migrates its database once per version.
           latest="$(git ls-remote --tags --refs origin |
             sed -n 's|.*refs/tags/\([0-9]*\.[0-9]*\.[0-9]*\)$|\1|p' | sort -V | tail -n 1)"
           test -n "$latest"
@@ -97,8 +92,6 @@ parts:
           ;;
       esac
 
-      # Build the web interface (the assets submodule) with upstream's script, which
-      # leaves it in application/statics/assets.zip to be embedded into the binary.
       bash .build/build-assets.sh "$version"
 
       module=github.com/cloudreve/Cloudreve/v4/application/constants
@@ -107,8 +100,6 @@ parts:
         -o "$CRAFT_PART_INSTALL/bin/cloudreve" .
 
       install -Dm644 LICENSE "$CRAFT_PART_INSTALL/share/doc/cloudreve/LICENSE"
-      # The binary and its web interface contain third-party code: keep its
-      # license and notice files.
       notices="$CRAFT_PART_INSTALL/share/doc/cloudreve/dependencies"
       mkdir -p "$notices"
       (cd assets && find node_modules -type f \( -iname 'license*' -o -iname 'licence*' \

@@ -1,5 +1,4 @@
 #!/bin/sh
-# Validate `snap set cloudreve listen=...` and restart the service so it applies.
 set -eu
 
 listen="$(snapctl get listen)"
@@ -23,7 +22,6 @@ if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
   exit 1
 fi
 
-# Also restart an enabled service that is down, so fixing a bad value brings it back.
 if snapctl services "$SNAP_INSTANCE_NAME.daemon" | grep -qwE 'enabled|active'; then
   snapctl restart "$SNAP_INSTANCE_NAME.daemon"
 fi
